@@ -17,9 +17,9 @@ class _ProviderMainScreenState extends State<ProviderMainScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = [
-    const ProviderDashboardScreen(),
+    ProviderDashboardScreen(),
     const ProviderOrdersScreen(),
-    const ProviderServicesScreen(),
+    ProviderServicesScreen(),
     const ProfileScreen(),
   ];
 

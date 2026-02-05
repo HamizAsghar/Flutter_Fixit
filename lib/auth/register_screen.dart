@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
-import '../controllers/auth_controller.dart';
-import '../utils/app_colors.dart';
+import 'package:fixit/controllers/auth_controller.dart';
+import 'package:fixit/utils/app_colors.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -18,9 +18,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
   String _selectedRole = "User";
+  String? _selectedCategory; // For Provider registration
 
   @override
   void dispose() {
@@ -28,6 +31,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -71,6 +75,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
               _buildRoleSelector(),
 
               const SizedBox(height: 32),
+
+              if (_selectedRole == "Provider") ...[
+                const Text(
+                  "Select Your Service Category",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ).animate().fade(),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _selectedCategory,
+                  hint: const Text("Select Category"),
+                  items: [
+                    "Cleaning",
+                    "Plumbing",
+                    "Electrical",
+                    "Painting",
+                    "Carpentry",
+                    "AC Repair"
+                  ].map((String category) {
+                    return DropdownMenuItem<String>(
+                      value: category,
+                      child: Text(category),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedCategory = value;
+                    });
+                  },
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.category_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ).animate().fade(delay: 100.ms),
+                const SizedBox(height: 24),
+              ],
 
               _buildField(
                 "Full Name",
@@ -119,6 +160,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
               ).animate().fade(delay: 500.ms),
+
+              const SizedBox(height: 16),
+
+              TextFormField(
+                controller: _confirmPasswordController,
+                obscureText: _obscureConfirmPassword,
+                decoration: InputDecoration(
+                  hintText: "Confirm Password",
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureConfirmPassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscureConfirmPassword = !_obscureConfirmPassword;
+                      });
+                    },
+                  ),
+                ),
+              ).animate().fade(delay: 600.ms),
 
               const SizedBox(height: 32),
 
@@ -174,13 +238,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   /// 🔹 REGISTER LOGIC (FIXED & WORKING)
   Future<void> _registerUser() async {
+    // Validate all fields
     if (_nameController.text.trim().isEmpty ||
         _emailController.text.trim().isEmpty ||
         _phoneController.text.trim().isEmpty ||
-        _passwordController.text.trim().isEmpty) {
+        _passwordController.text.trim().isEmpty ||
+        _confirmPasswordController.text.trim().isEmpty) {
       Get.snackbar(
         '⚠️ Missing Information',
         'Please fill all fields',
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    // Validate password match
+    if (_passwordController.text.trim() !=
+        _confirmPasswordController.text.trim()) {
+      Get.snackbar(
+        '⚠️ Password Mismatch',
+        'Passwords do not match',
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    // Validate password length
+    if (_passwordController.text.trim().length < 6) {
+      Get.snackbar(
+        '⚠️ Weak Password',
+        'Password must be at least 6 characters',
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    if (_selectedRole == "Provider" && _selectedCategory == null) {
+      Get.snackbar(
+        '⚠️ Category Required',
+        'Please select a service category',
         backgroundColor: Colors.orange,
         colorText: Colors.white,
         snackPosition: SnackPosition.BOTTOM,
@@ -194,10 +296,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       name: _nameController.text.trim(),
       phone: _phoneController.text.trim(),
       role: _selectedRole,
+      category: _selectedCategory,
     );
 
-    if (success) {
-      Get.back();
+    if (success && mounted) {
+      // Navigate back to login screen
+      Navigator.pop(context);
     }
   }
 

@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:get/get.dart';
 import '../../utils/app_colors.dart';
+import '../../controllers/service_controller.dart';
+import '../../controllers/auth_controller.dart';
 import 'add_service_screen.dart';
 
 class ProviderServicesScreen extends StatelessWidget {
-  const ProviderServicesScreen({super.key});
+  ProviderServicesScreen({super.key});
+
+  final serviceController = Get.find<ServiceController>();
+  final authController = Get.find<AuthController>();
 
   @override
   Widget build(BuildContext context) {
@@ -49,24 +55,22 @@ class ProviderServicesScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            _serviceTile(
-              "Plumbing Fixes",
-              "Starting from Rs. 25",
-              Icons.plumbing,
-              true,
-            ),
-            _serviceTile(
-              "Electrical Repair",
-              "Starting from Rs. 40",
-              Icons.electrical_services,
-              true,
-            ),
-            _serviceTile(
-              "Pipe Cleaning",
-              "Starting from Rs. 30",
-              Icons.water_drop,
-              false,
-            ),
+            Obx(() {
+              final services = serviceController.providerServices;
+              if (services.isEmpty) {
+                return const Center(child: Text("No services listed yet"));
+              }
+              return Column(
+                children: services.map((service) {
+                  return _serviceTile(
+                    service.name,
+                    "Starting from Rs. ${service.basePrice}",
+                    Icons.engineering,
+                    service.isActive,
+                  );
+                }).toList(),
+              );
+            }),
 
             const SizedBox(height: 32),
 

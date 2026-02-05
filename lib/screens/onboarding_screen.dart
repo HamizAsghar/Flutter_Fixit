@@ -1,6 +1,6 @@
+import 'package:fixit/auth/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../auth/login_screen.dart'; // Add this line
 import '../utils/app_colors.dart';
 
 class OnboardingScreen extends StatefulWidget {

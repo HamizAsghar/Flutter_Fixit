@@ -1,3 +1,4 @@
+import 'package:fixit/controllers/service_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_nav_bar/google_nav_bar.dart';
@@ -31,7 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _screens = [
       HomeDashboard(userLocation: widget.userLocation),
-      const BookingListScreen(),
+      BookingListScreen(),
       const ChatListScreen(),
       const ProfileScreen(),
     ];
@@ -107,7 +108,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class HomeDashboard extends StatelessWidget {
   final String userLocation;
-  const HomeDashboard({super.key, this.userLocation = "Faisalabad, Pakistan"});
+  HomeDashboard({super.key, this.userLocation = "Faisalabad, Pakistan"});
+
+  final serviceController = Get.find<ServiceController>();
 
   @override
   Widget build(BuildContext context) {
@@ -150,51 +153,67 @@ class HomeDashboard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        SizedBox(
-          height: 120,
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            scrollDirection: Axis.horizontal,
-            itemCount: 4,
-            itemBuilder: (context, index) {
-              final titles = [
-                "Deep Cleaning",
-                "Wiring",
-                "Pest Control",
-                "Carpentry",
-              ];
-              final icons = [
-                Icons.cleaning_services,
-                Icons.electrical_services,
-                Icons.bug_report,
-                Icons.handyman,
-              ];
-              return Container(
-                width: 140,
-                margin: const EdgeInsets.only(right: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.background),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(icons[index], color: AppColors.secondary, size: 30),
-                    const SizedBox(height: 12),
-                    Text(
-                      titles[index],
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
+        Obx(() {
+          final services = serviceController.allServices;
+          if (services.isEmpty) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24),
+              child: Text("No services available"),
+            );
+          }
+          return SizedBox(
+            height: 120,
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              scrollDirection: Axis.horizontal,
+              itemCount: services.length,
+              itemBuilder: (context, index) {
+                final service = services[index];
+                return GestureDetector(
+                  onTap: () {
+                    // Navigate to booking with this service
+                    Get.to(
+                      () => BookingScreen(
+                        serviceId: service.id,
+                        serviceName: service.name,
+                        price: service.basePrice,
+                        providerId: service.providerId,
                       ),
+                    );
+                  },
+                  child: Container(
+                    width: 140,
+                    margin: const EdgeInsets.only(right: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.background),
                     ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.engineering,
+                          color: AppColors.secondary,
+                          size: 30,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          service.name,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          );
+        }),
       ],
     );
   }
@@ -696,7 +715,13 @@ class HomeDashboard extends StatelessWidget {
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => BookingScreen(provider: provider),
+                      builder: (_) => BookingScreen(
+                        serviceId: 'service_${provider.id}',
+                        serviceName: provider.category,
+                        price: provider.hourlyRate,
+                        providerId: provider.id,
+                        provider: provider,
+                      ),
                     ),
                   );
                 },

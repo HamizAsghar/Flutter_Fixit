@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:get/get.dart';
 import '../utils/app_colors.dart';
+import '../controllers/booking_controller.dart';
+import '../models/booking_model.dart';
 
 class BookingListScreen extends StatelessWidget {
-  const BookingListScreen({super.key});
+  BookingListScreen({super.key});
+
+  final bookingController = Get.find<BookingController>();
 
   @override
   Widget build(BuildContext context) {
@@ -49,16 +54,31 @@ class BookingListScreen extends StatelessWidget {
   }
 
   Widget _buildBookingList({required bool isActive}) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(24),
-      itemCount: isActive ? 1 : 3,
-      itemBuilder: (context, index) {
-        return _bookingCard(isActive: isActive);
-      },
-    );
+    return Obx(() {
+      final bookings = bookingController.userBookings.where((b) {
+        if (isActive) {
+          return b.status != 'completed' && b.status != 'cancelled';
+        } else {
+          return b.status == 'completed' || b.status == 'cancelled';
+        }
+      }).toList();
+
+      if (bookings.isEmpty) {
+        return const Center(child: Text("No bookings found"));
+      }
+
+      return ListView.builder(
+        padding: const EdgeInsets.all(24),
+        itemCount: bookings.length,
+        itemBuilder: (context, index) {
+          return _bookingCard(bookings[index]);
+        },
+      );
+    });
   }
 
-  Widget _bookingCard({required bool isActive}) {
+  Widget _bookingCard(BookingModel booking) {
+    bool isActive = booking.status != 'completed' && booking.status != 'cancelled';
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(20),
@@ -84,16 +104,16 @@ class BookingListScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "Plumbing Repair",
-                      style: TextStyle(
+                    Text(
+                      "Service #${booking.id.substring(0, 5)}",
+                      style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "Ahmed Khan • Dec 31, 2025",
+                      "${booking.address} • ${booking.scheduledDate.day}/${booking.scheduledDate.month}/${booking.scheduledDate.year}",
                       style: TextStyle(color: Colors.grey[600], fontSize: 14),
                     ),
                   ],
@@ -111,7 +131,7 @@ class BookingListScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  isActive ? "In Progress" : "Done",
+                  booking.status.toUpperCase(),
                   style: TextStyle(
                     color: isActive ? AppColors.secondary : AppColors.success,
                     fontWeight: FontWeight.bold,
@@ -125,9 +145,9 @@ class BookingListScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                "Total Pay: Rs. 45.00",
-                style: TextStyle(fontWeight: FontWeight.bold),
+              Text(
+                "Total Pay: Rs. ${booking.totalPrice}",
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               if (isActive)
                 ElevatedButton(

@@ -1,17 +1,35 @@
+import 'package:fixit/models/provider_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../models/provider_model.dart';
+import 'package:get/get.dart';
 import '../utils/app_colors.dart';
+import '../controllers/booking_controller.dart';
+import '../controllers/auth_controller.dart';
 
 class BookingScreen extends StatefulWidget {
-  final ProviderModel provider;
-  const BookingScreen({super.key, required this.provider});
+  final String serviceId;
+  final String serviceName;
+  final double price;
+  final String providerId;
+  final ProviderModel? provider;
+
+  const BookingScreen({
+    super.key,
+    required this.serviceId,
+    required this.serviceName,
+    required this.price,
+    required this.providerId,
+    this.provider,
+  });
 
   @override
   State<BookingScreen> createState() => _BookingScreenState();
 }
 
 class _BookingScreenState extends State<BookingScreen> {
+  final bookingController = Get.find<BookingController>();
+  final authController = Get.find<AuthController>();
+
   DateTime _selectedDate = DateTime.now();
   String? _selectedTime;
 
@@ -59,13 +77,17 @@ class _BookingScreenState extends State<BookingScreen> {
       color: Colors.white,
       child: Row(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Image.network(
-              widget.provider.imageUrl,
-              width: 70,
-              height: 70,
-              fit: BoxFit.cover,
+          Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.engineering,
+              color: AppColors.primary,
+              size: 40,
             ),
           ),
           const SizedBox(width: 16),
@@ -74,14 +96,14 @@ class _BookingScreenState extends State<BookingScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.provider.name,
+                  widget.serviceName,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
                   ),
                 ),
                 Text(
-                  widget.provider.category,
+                  "Professional Service",
                   style: TextStyle(color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 4),
@@ -89,13 +111,13 @@ class _BookingScreenState extends State<BookingScreen> {
                   children: [
                     const Icon(Icons.star, color: Colors.amber, size: 16),
                     const SizedBox(width: 4),
-                    Text(
-                      widget.provider.rating.toString(),
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    const Text(
+                      "5.0",
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      "Rs. ${widget.provider.hourlyRate}/hr",
+                      "Rs. ${widget.price}",
                       style: const TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.bold,
@@ -233,11 +255,47 @@ class _BookingScreenState extends State<BookingScreen> {
   Widget _buildBookButton() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: ElevatedButton(
-        onPressed: (_selectedTime == null) ? null : () => _showSuccessDialog(),
-        child: const Text("Book Now"),
-      ).animate().fade(delay: 600.ms).scale(begin: const Offset(0.95, 0.95)),
-    );
+      child: Obx(
+        () => ElevatedButton(
+          onPressed:
+              (_selectedTime == null || bookingController.isLoading.value)
+              ? null
+              : _handleBooking,
+          child: bookingController.isLoading.value
+              ? const CircularProgressIndicator(color: Colors.white)
+              : const Text("Book Now"),
+        ),
+      ),
+    ).animate().fade(delay: 600.ms).scale(begin: const Offset(0.95, 0.95));
+  }
+
+  Future<void> _handleBooking() async {
+    final user = authController.currentUser.value;
+    if (user == null) return;
+
+    final bookingData = {
+      'user_id': user.id,
+      'provider_id': widget.providerId,
+      'service_id': widget.serviceId,
+      'status': 'pending',
+      'scheduled_date': _selectedDate.toIso8601String(),
+      'address': user.address ?? 'Current Location',
+      'city': user.city ?? 'Faisalabad',
+      'total_price': widget.price,
+      'payment_status': 'pending',
+    };
+
+    final success = await bookingController.createBooking(bookingData);
+    if (success) {
+      _showSuccessDialog();
+    } else {
+      Get.snackbar(
+        'Error',
+        'Failed to create booking. Please try again.',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
   }
 
   void _showSuccessDialog() {
@@ -263,7 +321,7 @@ class _BookingScreenState extends State<BookingScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                "Your service with ${widget.provider.name} has been successfully booked.",
+                "Your service ${widget.serviceName} has been successfully booked.",
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: AppColors.textSecondary),
               ),

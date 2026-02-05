@@ -1,6 +1,8 @@
+import 'package:fixit/auth/reset_password_screen.dart';
 import 'package:fixit/utils/supabaseConfig.dart';
 import 'package:fixit/controllers/auth_controller.dart';
-import 'auth/reset_password_screen.dart';
+import 'package:fixit/controllers/service_controller.dart';
+import 'package:fixit/controllers/booking_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -25,6 +27,8 @@ Future<void> main() async {
 
   // Initialize GetX Controllers
   Get.put(AuthController());
+  Get.put(ServiceController());
+  Get.put(BookingController());
 
   dev.log('✅ GetX Controllers initialized', name: 'Main');
 

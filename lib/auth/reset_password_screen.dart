@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
-import '../controllers/auth_controller.dart';
-import '../utils/app_colors.dart';
+import 'package:fixit/controllers/auth_controller.dart';
+import 'package:fixit/utils/app_colors.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});

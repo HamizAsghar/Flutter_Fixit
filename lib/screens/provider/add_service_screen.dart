@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:get/get.dart';
 import '../../utils/app_colors.dart';
+import '../../controllers/service_controller.dart';
+import '../../controllers/auth_controller.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AddServiceScreen extends StatefulWidget {
   const AddServiceScreen({super.key});
@@ -10,6 +14,9 @@ class AddServiceScreen extends StatefulWidget {
 }
 
 class _AddServiceScreenState extends State<AddServiceScreen> {
+  final serviceController = Get.find<ServiceController>();
+  final authController = Get.find<AuthController>();
+
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _priceController = TextEditingController();
@@ -18,11 +25,11 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
 
   final List<String> _categories = [
     "Plumbing",
-    "Electrician",
-    "House Cleaning",
-    "Car Maintenance",
-    "Pest Control",
+    "Electrical",
+    "Cleaning",
     "Painting",
+    "Carpentry",
+    "AC Repair",
   ];
 
   @override
@@ -77,19 +84,43 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
               const SizedBox(height: 40),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Service Published Successfully!"),
-                        ),
-                      );
-                      Navigator.pop(context);
-                    }
-                  },
-                  child: const Text("Publish Service"),
-                ),
+                child: Obx(() => ElevatedButton(
+                  onPressed: serviceController.isLoading.value
+                      ? null
+                      : () async {
+                          if (_formKey.currentState!.validate()) {
+                            // Get Category ID
+                            final catResponse = await Supabase.instance.client
+                                .from('categories')
+                                .select('id')
+                                .eq('name', _selectedCategory)
+                                .single();
+                            
+                            final categoryId = catResponse['id'];
+
+                            final success = await serviceController.addService({
+                              'provider_id': authController.currentUser.value!.id,
+                              'category_id': categoryId,
+                              'name': _titleController.text.trim(),
+                              'description': _descController.text.trim(),
+                              'base_price': double.parse(_priceController.text.trim()),
+                              'is_active': true,
+                            });
+
+                            if (success) {
+                              Get.snackbar('Success', 'Service Published Successfully!',
+                                  backgroundColor: Colors.green, colorText: Colors.white);
+                              Navigator.pop(context);
+                            } else {
+                              Get.snackbar('Error', 'Failed to publish service',
+                                  backgroundColor: Colors.red, colorText: Colors.white);
+                            }
+                          }
+                        },
+                  child: serviceController.isLoading.value
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text("Publish Service"),
+                )),
               ).animate().fade().scale(begin: const Offset(0.95, 0.95)),
             ],
           ),

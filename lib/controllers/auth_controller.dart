@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as dev;
 import 'dart:io';
+import 'package:fixit/auth/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -8,7 +9,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 import '../screens/home_screen.dart';
 import '../screens/provider/provider_main_screen.dart';
-import '../auth/login_screen.dart';
+
 
 class AuthController extends GetxController {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -60,6 +61,11 @@ class AuthController extends GetxController {
   Future<void> _handleSignedIn(User user) async {
     dev.log('✅ User signed in: ${user.email}', name: 'AuthController');
     await _loadUserData(user.id);
+
+    // Navigate based on role after loading user data
+    if (currentUser.value != null) {
+      _navigateBasedOnRole();
+    }
   }
 
   /// Handle user signed out
@@ -103,17 +109,36 @@ class AuthController extends GetxController {
 
       dev.log('📝 Creating user in database', name: 'AuthController');
 
+      // Extract name from Google metadata or email
+      String userName = 'User';
+      if (authUser.userMetadata?['name'] != null) {
+        userName = authUser.userMetadata!['name'];
+      } else if (authUser.userMetadata?['full_name'] != null) {
+        userName = authUser.userMetadata!['full_name'];
+      } else if (authUser.email != null) {
+        userName = authUser.email!.split('@')[0];
+      }
+
+      // Extract phone from metadata
+      String? userPhone =
+          authUser.userMetadata?['phone'] ??
+          authUser.userMetadata?['phone_number'];
+
+      // Extract avatar URL from Google metadata
+      String? avatarUrl =
+          authUser.userMetadata?['avatar_url'] ??
+          authUser.userMetadata?['picture'];
+
       final userData = {
         'id': userId,
-        'name':
-            authUser.userMetadata?['name'] ??
-            authUser.email?.split('@')[0] ??
-            'User',
+        'name': userName,
         'email': authUser.email!,
-        'phone': authUser.userMetadata?['phone'],
+        'phone': userPhone,
         'role': authUser.userMetadata?['role'] ?? 'User',
-        'avatar_url': authUser.userMetadata?['avatar_url'],
+        'avatar_url': avatarUrl,
       };
+
+      dev.log('📝 User data to insert: $userData', name: 'AuthController');
 
       await _supabase.from('users').upsert(userData);
 
@@ -145,6 +170,7 @@ class AuthController extends GetxController {
     required String name,
     required String phone,
     required String role,
+    String? category,
   }) async {
     try {
       isLoading.value = true;
@@ -204,8 +230,59 @@ class AuthController extends GetxController {
       }
 
       dev.log('✅ User registered successfully in auth', name: 'AuthController');
+
+      // Create user record in database immediately
+      try {
+        final userData = {
+          'id': response!.user!.id,
+          'name': name,
+          'email': email,
+          'phone': phone,
+          'role': role,
+          'created_at': DateTime.now().toIso8601String(),
+          'updated_at': DateTime.now().toIso8601String(),
+        };
+
+        dev.log(
+          '📝 Creating user record in database: $userData',
+          name: 'AuthController',
+        );
+
+        await _supabase.from('users').insert(userData);
+
+        // If provider, create a default service entry
+        if (role == 'Provider' && category != null) {
+          // Get category ID
+          final catResponse = await _supabase
+              .from('categories')
+              .select('id')
+              .eq('name', category)
+              .single();
+          
+          final categoryId = catResponse['id'];
+
+          await _supabase.from('services').insert({
+            'provider_id': response!.user!.id,
+            'category_id': categoryId,
+            'name': '$category Service',
+            'description': 'Professional $category service by $name',
+            'base_price': 500, // Default price
+            'is_active': true,
+          });
+          dev.log('✅ Provider service created', name: 'AuthController');
+        }
+
+        dev.log('✅ User record created in database', name: 'AuthController');
+      } catch (e) {
+        dev.log('❌ Error creating user record: $e', name: 'AuthController');
+        // Continue even if database insert fails - user can still login
+      }
+
+      // Sign out the user immediately after registration
+      await _supabase.auth.signOut();
+
       dev.log(
-        'ℹ️ User record will be created on first login',
+        'ℹ️ User signed out after registration, redirecting to login',
         name: 'AuthController',
       );
 
@@ -392,7 +469,27 @@ class AuthController extends GetxController {
         name: 'AuthController',
       );
 
-      // The auth state listener will handle navigation
+      // Check if user already exists and their role
+      final userData = await _supabase
+          .from('users')
+          .select('role')
+          .eq('id', response.user!.id)
+          .maybeSingle();
+
+      if (userData != null && userData['role'] == 'Provider') {
+        // Sign out if provider tries to login via Google
+        await _supabase.auth.signOut();
+        Get.snackbar(
+          '❌ Access Denied',
+          'Google Login is only for Users. Providers must use Email/Password.',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return false;
+      }
+
+      // If new user via Google, they will be created as 'User' by _createUserFromAuth
       return true;
     } catch (e) {
       dev.log('❌ Google sign-in error: $e', name: 'AuthController');
